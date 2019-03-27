@@ -4,6 +4,16 @@ use thiagoalessio\TesseractOCR\TesseractOCR;
 //Si hay imagen
 if(isset($_FILES['image'])){
 
+    // *** regex  ***
+        //Total
+        //$regExTotal = (?i)(?m)(?<=Total|Total\s|Total:\s|Total:|Total\s:\s)\d{1,4}(?:[.\s]\d{3})*(?:[.,]\d{2})(?!\%|\d|\.|\scm|cm|pol|\spol)(?=\s|€|\s€)
+        
+        // Fecha en formato: M/D/YYYY or MM/DD/YYYY
+        // $regExFecha = ^(0?[1-9]|1[0-2])[\/](0?[1-9]|[12]\d|3[01])[\/](19|20)\d{2}$
+        
+        //Fecha formato: DD mes
+        // $regExFechaMes= \d{1,2}\s+(Enero?|Febrero?|Marzo?|Abril?|Mayo|Junio?|Julio?|Agosto?|Septiembre?|Octubre?|Noviembre|Diciembre?)/gi
+
     $path = '/usr/local/Cellar/tesseract/4.0.0_1/bin/tesseract';
 
     $file_name = $_FILES['image']['name'];
@@ -18,11 +28,11 @@ if(isset($_FILES['image'])){
         //He tenido que ponerle la ruta donde esta el ejecutable por que aun cogiendo el path en la consola desde php no va
         ->executable($path)
         ->lang("spa")
-        //->psm(12)
+        ->psm(12)  //Menos estructurado pero reconoce mejor los numeros
         ->run();
 
 
-        //version Legacy (con esta si que van los patrones, pero reconoce peor y mas lento)
+    //version Legacy (con esta si que van los patrones, pero reconoce peor y mas lento)
         // $resultado = (new TesseractOCR("images/$file_name"))
         // ->executable($path)
         // ->tessdataDir('tessdata')
