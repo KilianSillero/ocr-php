@@ -28,7 +28,8 @@ if(isset($_FILES['image'])){
         //He tenido que ponerle la ruta donde esta el ejecutable por que aun cogiendo el path en la consola desde php no va
         ->executable($path)
         ->lang("spa")
-        ->psm(12)  //Menos estructurado pero reconoce mejor los numeros
+        ->hocr() //devuelve lo datos en hocr
+        //->psm(12)  //Menos estructurado pero reconoce mejor los numeros
         ->run();
 
 
