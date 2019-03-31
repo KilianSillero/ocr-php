@@ -29,9 +29,14 @@ if(isset($_FILES['image'])){
         ->executable($path)
         ->lang("spa")
         ->hocr() //devuelve lo datos en hocr
-        //->psm(12)  //Menos estructurado pero reconoce mejor los numeros
+        ->psm(12)  //Menos estructurado pero reconoce mejor los numeros
         ->run();
 
+        $xml = simplexml_load_string($resultado);
+        $json = json_encode($xml);
+        $array = json_decode($json,TRUE);
+
+        echo"<pre>$json</pre>";
 
     //version Legacy (con esta si que van los patrones, pero reconoce peor y mas lento)
         // $resultado = (new TesseractOCR("images/$file_name"))
