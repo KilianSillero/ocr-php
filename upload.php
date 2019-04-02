@@ -13,6 +13,7 @@ if(isset($_FILES['image'])){
         
         //Fecha formato: DD mes
         // $regExFechaMes= \d{1,2}\s+(Enero?|Febrero?|Marzo?|Abril?|Mayo|Junio?|Julio?|Agosto?|Septiembre?|Octubre?|Noviembre|Diciembre?)/gi
+        
 
     $path = '/usr/local/Cellar/tesseract/4.0.0_1/bin/tesseract';
 
