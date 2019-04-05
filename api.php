@@ -48,16 +48,19 @@ if(isset($_FILES['image'])){
 
     //si se ha subido correctamente, hacemos el ocr
     if ($didUpload) {
-       
-        list($widthImg, $heightImg) = getimagesize("images/$file_name"); //recoger tamaño de imagen
+        //tratamos la imagen con imagemagick (tiene que estar instalado)
+        exec("/usr/local/bin/convert images/$file_name \( -clone 0 -blur 0x8 \) +swap -compose divide -composite images/result_$file_name");
+
+        list($widthImg, $heightImg) = getimagesize("images/result_$file_name"); //recoger tamaño de imagen
         
         //hacemos el ocr
-        $resultado = (new TesseractOCR("images/$file_name"))
+        $resultado = (new TesseractOCR("images/result_$file_name"))
             //He tenido que ponerle la ruta donde esta el ejecutable por que aun cogiendo el path en la consola desde php no va
             ->executable($path)
             ->lang("spa")
             ->hocr() //devuelve lo datos en hocr
             //->psm(12)  //Menos estructurado pero reconoce mejor los numeros
+            ->config("tessedit_write_images", true) //saca tambien la imagen procesada (la que va a ser usada para el ocr) para ver como se ve
             ->run();
 
         //tratar los datos para hacer el json
@@ -108,25 +111,28 @@ function getPercentOfNumber($number, $percent){
 
 //funcion un poco de prueba para probar las expresiones regulares, si va bien se hace mejor
 function validateRegex(&$arrayImportantWords, $arrayWord){
-$regExCifNif = "/([a-z]|[A-Z]|[0-9])[0-9]{7}([a-z]|[A-Z]|[0-9])/";
-$regExTotal = "/(?i)(?m)\d{1,4}(?:[.,\s]\d{3})*(?:[.,]\d{2})(?!\%|\d|\.|\scm|cm|pol|\spol)/";
-$regExIvaEsp = "/\d{1,2}([.,]\d{2})?%|\d{1,2}([.,]\d{2})?\s%|21,00|10,00|4,00/";
+$regExCifNif = "/([a-z]|[A-Z]|[0-9])-?[0-9]{7}-?([a-z]|[A-Z]|[0-9])/";
+$regExTotal = "/\d{1,4}(?:[.,\s]\d{3})*(?:[.,]\d{2})(?!\%|\d|\.|\scm|cm|pol|\spol)/";
+$regExIvaEsp = "/\d{1,2}([.,]\d{2})?%|\d{1,2}([.,]\d{2})?\s%|21,00|10,00|4,00|^21|^10|^4/";
 
     //cif
     if(preg_match($regExCifNif, $arrayWord["word"], $matches)){
-            $arrayWord["value"] = $matches[0];
+            //$arrayWord["value"] = $matches[0];
+            $arrayWord["word"] = $matches[0];
             $arrayImportantWords["cifs"][] = $arrayWord;
             return;
     }
     //total
     if(preg_match($regExTotal, $arrayWord["word"], $matches)){
-        $arrayWord["value"] = $matches[0];
+        //$arrayWord["value"] = $matches[0];
+        $arrayWord["word"] = $matches[0];
         $arrayImportantWords["totales"][] = $arrayWord;
         return;
     }   
     //iva
     if(preg_match($regExIvaEsp, $arrayWord["word"], $matches)){
-        $arrayWord["value"] = $matches[0];
+        //$arrayWord["value"] = $matches[0];
+        $arrayWord["word"] = $matches[0];
         $arrayImportantWords["ivas"][] = $arrayWord;
         return;
     }   
