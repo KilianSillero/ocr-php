@@ -25,7 +25,7 @@ if(isset($_FILES['image'])){
     echo '<img src="images/'.$file_name.'" style="width:100%">';
 
     //tratamos la imagen con imagemagick (tiene que estar instalado)
-    exec("/usr/local/bin/convert images/$file_name \( -clone 0 -blur 0x8 \) +swap -compose divide -composite images/result_$file_name");
+    exec("/usr/local/bin/convert images/$file_name \( -clone 0 -blur 0x10 \) +swap -compose divide -composite images/result_$file_name");
 
     //hacemos el ocr
     $resultado = (new TesseractOCR("images/result_$file_name"))

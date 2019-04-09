@@ -41,11 +41,6 @@ if(isset($_FILES['image'])){
     }
     
 
-    //version corta sin comprobaciones
-    // $file_name = $_FILES['image']['name'];
-    // $file_tmp =$_FILES['image']['tmp_name'];
-    // move_uploaded_file($file_tmp,"images/".$file_name); //la guardamos en images
-
     //si se ha subido correctamente, hacemos el ocr
     if ($didUpload) {
         //tratamos la imagen con imagemagick (tiene que estar instalado)
@@ -78,15 +73,23 @@ if(isset($_FILES['image'])){
             $aux["w"] = getPercentOfNumber(($coords[3] - $coords[1]),$widthImg); //ancho de la palabra
             $aux["h"] = getPercentOfNumber(($coords[4] - $coords[2]),$heightImg); //alto de la palabra
 
-            $arrayWords[] = $aux;
+            //$arrayWords[] = $aux;
             //regex
             validateRegex($arrayImportantWords, $aux);
         }
 
+        //funciones para sacar datos
+
+        $arrayJson["total"] = getTotal($arrayImportantWords);
+
+        //var_dump($arrayWords);
+        //var_dump( $arrayImportantWords);
+        //var_dump(getNearestY($arrayImportantWords["total"],$arrayImportantWords["prices"]));
+        //var_dump(getMaxNumber($arrayImportantWords["prices"]));
 
         //juntar las arrays
-        $arrayJson["arrayWords"] = $arrayWords;
-        $arrayJson["arrayImportantWords"] = $arrayImportantWords;
+        // $arrayJson["arrayWords"] = $arrayWords;
+        // $arrayJson["arrayImportantWords"] = $arrayImportantWords;
 
         //devolver el json
         
@@ -111,31 +114,92 @@ function getPercentOfNumber($number, $percent){
 
 //funcion un poco de prueba para probar las expresiones regulares, si va bien se hace mejor
 function validateRegex(&$arrayImportantWords, $arrayWord){
+$regExTotal = "/total/i";
 $regExCifNif = "/([a-z]|[A-Z]|[0-9])-?[0-9]{7}-?([a-z]|[A-Z]|[0-9])/";
-$regExTotal = "/\d{1,4}(?:[.,\s]\d{3})*(?:[.,]\d{2})(?!\%|\d|\.|\scm|cm|pol|\spol)/";
+$regExPrecio = "/\d{1,4}(?:[.,\s]\d{3})*(?:[.,]\d{2})(?!\%|\d|\.|\scm|cm|pol|\spol)/";
 $regExIvaEsp = "/\d{1,2}([.,]\d{2})?%|\d{1,2}([.,]\d{2})?\s%|21,00|10,00|4,00|^21|^10|^4/";
 
     //cif
     if(preg_match($regExCifNif, $arrayWord["word"], $matches)){
-            //$arrayWord["value"] = $matches[0];
-            $arrayWord["word"] = $matches[0];
-            $arrayImportantWords["cifs"][] = $arrayWord;
-            return;
+        //$arrayWord["value"] = $matches[0];
+        $arrayWord["word"] = $matches[0];
+        $arrayImportantWords["cif"] = $arrayWord;
+        return;
     }
     //total
     if(preg_match($regExTotal, $arrayWord["word"], $matches)){
         //$arrayWord["value"] = $matches[0];
         $arrayWord["word"] = $matches[0];
-        $arrayImportantWords["totales"][] = $arrayWord;
+        $arrayImportantWords["total"] = $arrayWord;
         return;
     }   
     //iva
     if(preg_match($regExIvaEsp, $arrayWord["word"], $matches)){
         //$arrayWord["value"] = $matches[0];
         $arrayWord["word"] = $matches[0];
-        $arrayImportantWords["ivas"][] = $arrayWord;
+        $arrayImportantWords["iva"] = $arrayWord;
+        return;
+    }   
+    //precios
+    if(preg_match($regExPrecio, $arrayWord["word"], $matches)){
+        //$arrayWord["value"] = $matches[0];
+        $arrayWord["word"] = $matches[0];
+        $arrayImportantWords["prices"][] = $arrayWord;
         return;
     }   
 
+}
+
+
+//funciones para recoger valores
+function getTotal($arrayImportantWords){
+    $arrayTotals = array();
+    if(array_key_exists("prices",$arrayImportantWords)){
+        if(array_key_exists("total",$arrayImportantWords)){
+            $arrayTotals["nearest"] = getNearest($arrayImportantWords["total"], $arrayImportantWords["prices"])["word"];
+        }
+        $arrayTotals["bigger"] = getBigger($arrayImportantWords["prices"], "h")["word"];
+        $arrayTotals["max"] = getMaxNumber($arrayImportantWords["prices"])["word"];
+        $arrayTotals["lowest"] = getBigger($arrayImportantWords["prices"],"y")["word"];
+        //mostrar datos mientras se prueba
+        //print_r($arrayTotals);
+
+    }
+    //TODO- ver cual coger 
+    $probably = null;
+    //devolver el total mas probable
+    $repetidos = array_count_values($arrayTotals);
+    if($repetidos){
+        $key = array_keys($repetidos, max($repetidos));
+        $probably = $key[0];
+    }
+    
+    return $probably;
+}
+
+function getBigger($array, $value){ //con value 'h' devuelve el más alto, con value 'y' devuelve el que mas abajo esté
+    $column = array_column($array, $value);
+    $key = array_keys($column,max($column));
+    return $array[$key[0]];
+}
+
+function getNearest($target, $array, $axis="y"){ //devuelve el mas cercano a su eje (Ej: target 'total', eje 'y')
+    $yt = $target[$axis];
+    $nearest = [];
+    $min = 100;
+    foreach ($array as $key=>$value) {
+        $aux = abs($yt - $value[$axis]);
+        if($aux < $min){
+            $nearest = $array[$key];
+            $min = $aux;
+        }
+    }
+    return $nearest;
+}
+function getMaxNumber($array){ //devuelve el que sea mas grande de numero
+    $column = array_column($array, 'word');
+    $floats= array_map('floatval',$column); //parse a float
+    $key = array_keys($floats,max($floats));
+    return $array[$key[0]];
 }
 ?>
