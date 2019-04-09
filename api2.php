@@ -99,9 +99,9 @@ function getPercentOfNumber($number, $percent){
 //funcion para filtrar los datos y guardar los importantes
 function validateRegex(&$arrayImportantWords, $arrayWord){
 $regExTotal = "/total/i";
-$regExCifNif = "/([a-z]|[A-Z]|[0-9])-?[0-9]{7}-?([a-z]|[A-Z]|[0-9])/";
+$regExCifNif = "/([a-z]|[A-Z])-?[0-9]{8}|[0-9]{8}-?([a-z]|[A-Z])/";
 $regExPrecio = "/\d{1,4}(?:[.,\s]\d{3})*(?:[.,]\d{2})(?!\%|\d|\.|\scm|cm|pol|\spol)/";
-$regExIvaEsp = "/\d{1,2}([.,]\d{2})?%|\d{1,2}([.,]\d{2})?\s%|21,00|10,00|4,00|^21|^10|^4/";
+//$regExIvaEsp = "/\d{1,2}([.,]\d{2})?%|\d{1,2}([.,]\d{2})?\s%|21,00|10,00|4,00|^21|^10|^4/";
 
     //cif
     if(preg_match($regExCifNif, $arrayWord["word"], $matches)){        
@@ -115,12 +115,12 @@ $regExIvaEsp = "/\d{1,2}([.,]\d{2})?%|\d{1,2}([.,]\d{2})?\s%|21,00|10,00|4,00|^2
         $arrayImportantWords["total"] = $arrayWord;
         return;
     }   
-    //iva
-    if(preg_match($regExIvaEsp, $arrayWord["word"], $matches)){        
-        $arrayWord["word"] = $matches[0];
-        $arrayImportantWords["iva"] = $arrayWord;
-        return;
-    }   
+    // //iva
+    // if(preg_match($regExIvaEsp, $arrayWord["word"], $matches)){        
+    //     $arrayWord["word"] = $matches[0];
+    //     $arrayImportantWords["iva"] = $arrayWord;
+    //     return;
+    // }   
     //precios
     if(preg_match($regExPrecio, $arrayWord["word"], $matches)){        
         $arrayWord["word"] = $matches[0];
