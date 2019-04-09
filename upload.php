@@ -13,6 +13,7 @@ if(isset($_FILES['image'])){
         
         //Fecha formato: DD mes
         // $regExFechaMes= \d{1,2}\s+(Enero?|Febrero?|Marzo?|Abril?|Mayo|Junio?|Julio?|Agosto?|Septiembre?|Octubre?|Noviembre|Diciembre?)/gi
+        
 
     $path = '/usr/local/Cellar/tesseract/4.0.0_1/bin/tesseract';
 
@@ -23,13 +24,17 @@ if(isset($_FILES['image'])){
     echo "<h3>Image Upload Success</h3>";
     echo '<img src="images/'.$file_name.'" style="width:100%">';
 
+    //tratamos la imagen con imagemagick (tiene que estar instalado)
+    exec("/usr/local/bin/convert images/$file_name \( -clone 0 -blur 0x10 \) +swap -compose divide -composite images/result_$file_name");
+
     //hacemos el ocr
-    $resultado = (new TesseractOCR("images/$file_name"))
+    $resultado = (new TesseractOCR("images/result_$file_name"))
         //He tenido que ponerle la ruta donde esta el ejecutable por que aun cogiendo el path en la consola desde php no va
         ->executable($path)
         ->lang("spa")
         ->hocr() //devuelve lo datos en hocr
-        //->psm(12)  //Menos estructurado pero reconoce mejor los numeros
+        //->psm(11)  //Menos estructurado pero reconoce mejor los numeros
+        ->config("tessedit_write_images", true)
         ->run();
 
 
