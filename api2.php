@@ -3,9 +3,6 @@ require_once __DIR__ . '/vendor/autoload.php';
 include('simple_html_dom.php');
 
 use thiagoalessio\TesseractOCR\TesseractOCR;
-// $post = file_get_contents('php://input');
-// echo $post;
-// die;
 
 //Si hay imagen
 if(isset($_FILES['image'])){
@@ -58,53 +55,40 @@ if(isset($_FILES['image'])){
             ->config("tessedit_write_images", true) //saca tambien la imagen procesada (la que va a ser usada para el ocr) para ver como se ve
             ->run();
 
-        //tratar los datos para hacer el json
+        //tratar los datos para despues hacer el json
         $html = str_get_html($resultado);
         $arrayJson = array(); //array general del json
-        $arrayWords = array(); //array con las palabras y posiciones
         $arrayImportantWords = array(); //array con los campos importantes
 
         foreach($html->find('span[class="ocrx_word"]') as $word) { //Recoger todas las palabras
-            $aux = array(); //array auxiliar para crear el objeto en json
+            $aux = array(); 
             $coords = explode(" ", $word->title); //conseguir las cordenadas
             $aux["word"] = str_replace('&quot;', '', $word->plaintext); //palabra
             $aux["x"] = getPercentOfNumber($coords[1],$widthImg); //cordenada x de la esquina superior izquierda
             $aux["y"] = getPercentOfNumber($coords[2],$heightImg); //cordenada y de la esquina superior izquierda
             $aux["w"] = getPercentOfNumber(($coords[3] - $coords[1]),$widthImg); //ancho de la palabra
             $aux["h"] = getPercentOfNumber(($coords[4] - $coords[2]),$heightImg); //alto de la palabra
-
-            //$arrayWords[] = $aux;
             //regex
             validateRegex($arrayImportantWords, $aux);
         }
 
-        //funciones para sacar datos
-
+        //hacer el json con los datos 
         $arrayJson["total"] = getTotal($arrayImportantWords);
-
-        //var_dump($arrayWords);
-        //var_dump( $arrayImportantWords);
-        //var_dump(getNearestY($arrayImportantWords["total"],$arrayImportantWords["prices"]));
-        //var_dump(getMaxNumber($arrayImportantWords["prices"]));
-
-        //juntar las arrays
-        // $arrayJson["arrayWords"] = $arrayWords;
-        // $arrayJson["arrayImportantWords"] = $arrayImportantWords;
+        $arrayJson["cif"] = isset($arrayImportantWords["cif"]["word"]) ? $arrayImportantWords["cif"]["word"] : null;
 
         //devolver el json
-        
-        // header('Access-Control-Allow-Origin: *');
-        // header('Access-Control-Allow-Credentials: true');
-        // header("Access-Control-Allow-Headers: Origin, X-Requested-With, Content-Type, Accept");
-        // header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE');
         header('Content-type:application/json;charset=utf-8');
         echo json_encode($arrayJson, JSON_UNESCAPED_UNICODE);
+
+
+        //borrar los archivos creados
+        unlink("images/$file_name");
+        unlink("images/result_$file_name");
     }
 }
 
 
-
-//funciones
+/**  FUNCIONES  */
 function getPercentOfNumber($number, $percent){
     if($number != 0)
         return round(($number / $percent) * 100 , 2);
@@ -112,7 +96,7 @@ function getPercentOfNumber($number, $percent){
         return 0;
 }
 
-//funcion un poco de prueba para probar las expresiones regulares, si va bien se hace mejor
+//funcion para filtrar los datos y guardar los importantes
 function validateRegex(&$arrayImportantWords, $arrayWord){
 $regExTotal = "/total/i";
 $regExCifNif = "/([a-z]|[A-Z]|[0-9])-?[0-9]{7}-?([a-z]|[A-Z]|[0-9])/";
@@ -120,29 +104,25 @@ $regExPrecio = "/\d{1,4}(?:[.,\s]\d{3})*(?:[.,]\d{2})(?!\%|\d|\.|\scm|cm|pol|\sp
 $regExIvaEsp = "/\d{1,2}([.,]\d{2})?%|\d{1,2}([.,]\d{2})?\s%|21,00|10,00|4,00|^21|^10|^4/";
 
     //cif
-    if(preg_match($regExCifNif, $arrayWord["word"], $matches)){
-        //$arrayWord["value"] = $matches[0];
+    if(preg_match($regExCifNif, $arrayWord["word"], $matches)){        
         $arrayWord["word"] = $matches[0];
         $arrayImportantWords["cif"] = $arrayWord;
         return;
     }
     //total
-    if(preg_match($regExTotal, $arrayWord["word"], $matches)){
-        //$arrayWord["value"] = $matches[0];
+    if(preg_match($regExTotal, $arrayWord["word"], $matches)){        
         $arrayWord["word"] = $matches[0];
         $arrayImportantWords["total"] = $arrayWord;
         return;
     }   
     //iva
-    if(preg_match($regExIvaEsp, $arrayWord["word"], $matches)){
-        //$arrayWord["value"] = $matches[0];
+    if(preg_match($regExIvaEsp, $arrayWord["word"], $matches)){        
         $arrayWord["word"] = $matches[0];
         $arrayImportantWords["iva"] = $arrayWord;
         return;
     }   
     //precios
-    if(preg_match($regExPrecio, $arrayWord["word"], $matches)){
-        //$arrayWord["value"] = $matches[0];
+    if(preg_match($regExPrecio, $arrayWord["word"], $matches)){        
         $arrayWord["word"] = $matches[0];
         $arrayImportantWords["prices"][] = $arrayWord;
         return;
@@ -161,13 +141,10 @@ function getTotal($arrayImportantWords){
         $arrayTotals["bigger"] = getBigger($arrayImportantWords["prices"], "h")["word"];
         $arrayTotals["max"] = getMaxNumber($arrayImportantWords["prices"])["word"];
         $arrayTotals["lowest"] = getBigger($arrayImportantWords["prices"],"y")["word"];
-        //mostrar datos mientras se prueba
-        //print_r($arrayTotals);
 
     }
-    //TODO- ver cual coger 
+    //devolver el total mas probable (el que mas veces salga)
     $probably = null;
-    //devolver el total mas probable
     $repetidos = array_count_values($arrayTotals);
     if($repetidos){
         $key = array_keys($repetidos, max($repetidos));
