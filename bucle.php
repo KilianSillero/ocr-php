@@ -25,7 +25,7 @@ use thiagoalessio\TesseractOCR\TesseractOCR;
     //si se ha subido correctamente, hacemos el ocr
     foreach ($ficheros as $file_name) {
         //tratamos la imagen con imagemagick (tiene que estar instalado)
-        exec("/usr/local/bin/convert $directory/$file_name \( -clone 0 -blur 0x10 \) +swap -compose divide -composite $directory/result_$file_name");
+        exec("/usr/local/bin/convert $directory/$file_name \( -clone 0 -blur 0x10 \) +swap -compose divide -composite -deskew 20% $directory/result_$file_name");
 
         list($widthImg, $heightImg) = getimagesize("$directory/result_$file_name"); //recoger tamaño de imagen
         
