@@ -41,7 +41,7 @@ if(isset($_FILES['image'])){
     //si se ha subido correctamente, hacemos el ocr
     if ($didUpload) {
         //tratamos la imagen con imagemagick (tiene que estar instalado)
-        exec("/usr/local/bin/convert images/$file_name \( -clone 0 -blur 0x10 \) +swap -compose divide -composite images/result_$file_name");
+        exec("/usr/local/bin/convert images/$file_name \( -clone 0 -blur 0x10 \) +swap -compose divide -composite -deskew 30% images/result_$file_name");
 
         list($widthImg, $heightImg) = getimagesize("images/result_$file_name"); //recoger tamaño de imagen
         
@@ -82,8 +82,8 @@ if(isset($_FILES['image'])){
 
 
         //borrar los archivos creados
-        unlink("images/$file_name");
-        unlink("images/result_$file_name");
+        // unlink("images/$file_name");
+        // unlink("images/result_$file_name");
     }
 }
 
