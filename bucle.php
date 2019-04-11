@@ -35,7 +35,7 @@ use thiagoalessio\TesseractOCR\TesseractOCR;
             ->executable($path)
             ->lang("spa")
             ->hocr() //devuelve lo datos en hocr
-            //->psm(12)  //Menos estructurado pero reconoce mejor los numeros
+            ->psm(1)  //Menos estructurado pero reconoce mejor los numeros
             ->config("tessedit_write_images", true) //saca tambien la imagen procesada (la que va a ser usada para el ocr) para ver como se ve
             ->run();
 

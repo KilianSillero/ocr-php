@@ -5,6 +5,7 @@ include('simple_html_dom.php');
 use thiagoalessio\TesseractOCR\TesseractOCR;
 //phpinfo();die;
 //Si hay imagen
+$timestamp = microtime(true);
 if(isset($_FILES['image'])){
 
     $path = '/usr/local/Cellar/tesseract/4.0.0_1/bin/tesseract';
@@ -37,7 +38,7 @@ if(isset($_FILES['image'])){
         }
     }
     
-    
+    echo "Timestamp - Despues de subir la imagen: " . (microtime(true) - $timestamp)."<br>";
     //si se ha subido correctamente, hacemos el ocr
     if ($didUpload) {
         //tratamos la imagen con imagemagick (tiene que estar instalado)
@@ -52,15 +53,18 @@ if(isset($_FILES['image'])){
 
         list($widthImg, $heightImg) = getimagesize("images/result_$file_name"); //recoger tamaño de imagen
         
+        echo "Timestamp - Despues de tratar la imagen: " . (microtime(true) - $timestamp)."<br>";
         //hacemos el ocr
         $resultado = (new TesseractOCR("images/result_$file_name"))
             //He tenido que ponerle la ruta donde esta el ejecutable por que aun cogiendo el path en la consola desde php no va
             ->executable($path)
             ->lang("spa")
             ->hocr() //devuelve lo datos en hocr
-            //->psm(12)  //Menos estructurado pero reconoce mejor los numeros
+            ->psm(1)  //detecta las imagenes giradas pero tarda un poco más
             ->config("tessedit_write_images", true) //saca tambien la imagen procesada (la que va a ser usada para el ocr) para ver como se ve
             ->run();
+
+        echo "Timestamp - Despues de hacer el OCR: " . (microtime(true) - $timestamp)."<br>";
 
         //tratar los datos para despues hacer el json
         $html = str_get_html($resultado);
@@ -78,11 +82,13 @@ if(isset($_FILES['image'])){
             //regex
             validateRegex($arrayImportantWords, $aux);
         }
+        echo "Timestamp - Despues de convertir los datos a array con cordenadas: " . (microtime(true) - $timestamp)."<br>";
 
         //hacer el json con los datos 
         $arrayJson["total"] = getTotal($arrayImportantWords);
         $arrayJson["cif"] = isset($arrayImportantWords["cif"]["word"]) ? $arrayImportantWords["cif"]["word"] : null;
 
+        echo "Timestamp - Despues de tratar los datos: " . (microtime(true) - $timestamp)."<br>";
         //devolver el json
         header('Content-type:application/json;charset=utf-8');
         echo json_encode($arrayJson, JSON_UNESCAPED_UNICODE);

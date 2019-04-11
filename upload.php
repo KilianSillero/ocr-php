@@ -33,7 +33,7 @@ if(isset($_FILES['image'])){
         ->executable($path)
         ->lang("spa")
         ->hocr() //devuelve lo datos en hocr
-        //->psm(11)  //Menos estructurado pero reconoce mejor los numeros
+        ->psm(1)  //Menos estructurado pero reconoce mejor los numeros
         ->config("tessedit_write_images", true)
         ->run();
 
