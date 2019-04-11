@@ -3,7 +3,7 @@ require_once __DIR__ . '/vendor/autoload.php';
 include('simple_html_dom.php');
 
 use thiagoalessio\TesseractOCR\TesseractOCR;
-
+//phpinfo();die;
 //Si hay imagen
 if(isset($_FILES['image'])){
 
@@ -37,11 +37,19 @@ if(isset($_FILES['image'])){
         }
     }
     
-
+    
     //si se ha subido correctamente, hacemos el ocr
     if ($didUpload) {
         //tratamos la imagen con imagemagick (tiene que estar instalado)
-        exec("/usr/local/bin/convert images/$file_name \( -clone 0 -blur 0x10 \) +swap -compose divide -composite -deskew 20% images/result_$file_name");
+        //exec("/usr/local/bin/convert images/$file_name \( -clone 0 -blur 0x10 \) +swap -compose divide -composite images/result_$file_name");
+        
+        //tratar la imagen con imagick en vez de con comandos
+        $image = new Imagick("images/$file_name");
+        $image2 = clone $image;
+        $image2->blurImage(0,10);
+        $image->setImageCompose(false);
+        $image2->compositeImage($image, Imagick::COMPOSITE_DIVIDEDST, 0, 0);
+        $image2->writeImage("images/result_$file_name");
 
         list($widthImg, $heightImg) = getimagesize("images/result_$file_name"); //recoger tamaño de imagen
         
