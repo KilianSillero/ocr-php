@@ -47,7 +47,6 @@ if(isset($_FILES['image'])){
         $image = new Imagick("images/$file_name");
         $image2 = clone $image;
         $image2->blurImage(0,10);
-        $image->setImageCompose(false);
         $image2->compositeImage($image, Imagick::COMPOSITE_DIVIDEDST, 0, 0);
         $image2->writeImage("images/result_$file_name");
 
