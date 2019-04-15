@@ -85,18 +85,21 @@ if(isset($_FILES['image'])){
         echo "Timestamp - Despues de convertir los datos a array con cordenadas: " . (microtime(true) - $timestamp)."<br>";
 
         //hacer el json con los datos 
-        $arrayJson["total"] = getTotal($arrayImportantWords);
+        $arrayJson["total"] = getProbablyTotal($arrayImportantWords);
         $arrayJson["cif"] = isset($arrayImportantWords["cif"]["word"]) ? $arrayImportantWords["cif"]["word"] : null;
+        $arrayJson["date"] = getProbablyDate($arrayImportantWords);
+        $arrayJson["hour"] = getProbablyHour($arrayImportantWords);
+        
 
         echo "Timestamp - Despues de tratar los datos: " . (microtime(true) - $timestamp)."<br>";
         //devolver el json
         header('Content-type:application/json;charset=utf-8');
-        echo json_encode($arrayJson, JSON_UNESCAPED_UNICODE);
-
+        //depende de si se quieren tratar los slash desde el cliente, se quita el JSON_UNESCAPED_SLASHES
+        echo json_encode($arrayJson, JSON_UNESCAPED_SLASHES);
 
         //borrar los archivos creados
-        unlink("images/$file_name");
-        unlink("images/result_$file_name");
+        // unlink("images/$file_name");
+        // unlink("images/result_$file_name");
     }
 }
 
@@ -111,15 +114,23 @@ function getPercentOfNumber($number, $percent){
 
 //funcion para filtrar los datos y guardar los importantes
 function validateRegex(&$arrayImportantWords, $arrayWord){
-$regExTotal = "/total/i";
-$regExCifNif = "/([a-z]|[A-Z])-?[0-9]{8}|[0-9]{8}-?([a-z]|[A-Z])/";
-$regExPrecio = "/\d{1,4}(?:[.,\s]\d{3})*(?:[.,]\d{2})(?!\%|\d|\.|\scm|cm|pol|\spol)/";
-//$regExIvaEsp = "/\d{1,2}([.,]\d{2})?%|\d{1,2}([.,]\d{2})?\s%|21,00|10,00|4,00|^21|^10|^4/";
-
+    $regExTotal = "/total/i";
+    $regExCifNif = "/([a-z]|[A-Z])-?[0-9]{8}|[0-9]{8}-?([a-z]|[A-Z])/";
+    $regExPrecio = "/\d{1,4}(?:[.,\s]\d{3})*(?:[.,]\d{2})(?!\%|\d|\.|\scm|cm|pol|\spol)/";
+    //$regExIvaEsp = "/\d{1,2}([.,]\d{2})?%|\d{1,2}([.,]\d{2})?\s%|21,00|10,00|4,00|^21|^10|^4/";
+    $regExFecha =  "/(0?[1-9]|1[0-2])[\/.-](0?[1-9]|[12]\d|3[01])[\/.-](19|20)?\d{2}|(0?[1-9]|[12]\d|3[01])[\/.-](0?[1-9]|1[0-2])[\/.-](19|20)?\d{2}/";
+    $regExHora = "/([01]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?/";
     //cif
     if(preg_match($regExCifNif, $arrayWord["word"], $matches)){        
         $arrayWord["word"] = $matches[0];
         $arrayImportantWords["cif"] = $arrayWord;
+        return;
+    }
+    //fecha
+    if(preg_match($regExFecha, $arrayWord["word"], $matches)){   
+        $replaces = array(".",",","-")   ;  
+        $arrayWord["word"] = str_replace($replaces, "/", $matches[0]);
+        $arrayImportantWords["date"][] = $arrayWord;
         return;
     }
     //total
@@ -140,28 +151,51 @@ $regExPrecio = "/\d{1,4}(?:[.,\s]\d{3})*(?:[.,]\d{2})(?!\%|\d|\.|\scm|cm|pol|\sp
         $arrayImportantWords["prices"][] = $arrayWord;
         return;
     }   
+    if(preg_match($regExHora, $arrayWord["word"], $matches)){        
+        $arrayWord["word"] = $matches[0];
+        $arrayImportantWords["hours"][] = $arrayWord;
+        return;
+    }  
 
 }
 
 
 //funciones para recoger valores
-function getTotal($arrayImportantWords){
+function getProbablyTotal($arrayImportantWords){
     $arrayTotals = array();
     if(array_key_exists("prices",$arrayImportantWords)){
         if(array_key_exists("total",$arrayImportantWords)){
-            $arrayTotals["nearest"] = getNearest($arrayImportantWords["total"], $arrayImportantWords["prices"])["word"];
+            $arrayTotals["nearest"] = getNearest($arrayImportantWords["total"], $arrayImportantWords["prices"]);
         }
-        $arrayTotals["bigger"] = getBigger($arrayImportantWords["prices"], "h")["word"];
-        $arrayTotals["max"] = getMaxNumber($arrayImportantWords["prices"])["word"];
-        $arrayTotals["lowest"] = getBigger($arrayImportantWords["prices"],"y")["word"];
+        $arrayTotals["bigger"] = getBigger($arrayImportantWords["prices"], "h");
+        $arrayTotals["max"] = getMaxNumber($arrayImportantWords["prices"]);
+        $arrayTotals["lowest"] = getBigger($arrayImportantWords["prices"],"y");
 
     }
+    return getMoreProbably($arrayTotals);
+}
+function getProbablyHour($arrayImportantWords){
+    if(array_key_exists("date",$arrayImportantWords) && array_key_exists("hours",$arrayImportantWords)){
+        return getNearest($arrayImportantWords["date"][0],$arrayImportantWords["hours"])["word"];
+    }
+    return null;
+}
+function getProbablyDate($arrayImportantWords){
+    if(array_key_exists("date",$arrayImportantWords)){
+        return getMoreProbably($arrayImportantWords["date"]);
+    }
+    return null;
+}
+function getMoreProbably($array){
     //devolver el total mas probable (el que mas veces salga)
     $probably = null;
-    $repetidos = array_count_values($arrayTotals);
-    if($repetidos){
-        $key = array_keys($repetidos, max($repetidos));
-        $probably = $key[0];
+    if($array){
+        $column = array_column($array, "word");
+        $repetidos = array_count_values($column);
+        if($repetidos){
+            $key = array_keys($repetidos, max($repetidos));
+            $probably = $key[0];
+        }
     }
     
     return $probably;
