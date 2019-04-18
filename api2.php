@@ -17,6 +17,7 @@ if(isset($_FILES['image'])){
     $errors = []; // Store all foreseen and unforseen errors here
 
     $file_name = $_FILES['image']['name'];
+    $file_name = str_replace(' ', '_', $file_name); //quitar los espacios
     $file_size = $_FILES['image']['size'];
     $file_tmp  = $_FILES['image']['tmp_name'];
 
@@ -42,14 +43,17 @@ if(isset($_FILES['image'])){
     //si se ha subido correctamente, hacemos el ocr
     if ($didUpload) {
         //tratamos la imagen con imagemagick (tiene que estar instalado)
-        //exec("/usr/local/bin/convert images/$file_name \( -clone 0 -blur 0x10 \) +swap -compose divide -composite images/result_$file_name");
-        
+        if(mime_content_type ( "images/".$file_name ) == "application/pdf"){
+            exec("/usr/local/bin/gs -dSAFER -dNOPAUSE -dBATCH -sDEVICE=jpeg -dTextAlphaBits=4 -dGraphicsAlphaBits=4 -r300 -dFirstPage=1 -dLastPage=1 -sOutputFile=images/result_$file_name images/$file_name");
+        }else{
+            exec("/usr/local/bin/convert images/$file_name \( -clone 0 -blur 0x10 \) +swap -compose divide -composite images/result_$file_name");
+        }
         //tratar la imagen con imagick en vez de con comandos
-        $image = new Imagick("images/$file_name");
-        $image2 = clone $image;
-        $image2->blurImage(0,10);
-        $image2->compositeImage($image, Imagick::COMPOSITE_DIVIDEDST, 0, 0);
-        $image2->writeImage("images/result_$file_name");
+        // $image = new Imagick("images/$file_name");
+        // $image2 = clone $image;
+        // $image2->blurImage(0,10);
+        // $image2->compositeImage($image, Imagick::COMPOSITE_DIVIDEDST, 0, 0);
+        // $image2->writeImage("images/result_$file_name");
 
         list($widthImg, $heightImg) = getimagesize("images/result_$file_name"); //recoger tamaño de imagen
         
@@ -61,7 +65,7 @@ if(isset($_FILES['image'])){
             ->lang("spa")
             ->hocr() //devuelve lo datos en hocr
             ->psm(1)  //detecta las imagenes giradas pero tarda un poco más
-            ->config("tessedit_write_images", true) //saca tambien la imagen procesada (la que va a ser usada para el ocr) para ver como se ve
+            //->config("tessedit_write_images", true) //saca tambien la imagen procesada (la que va a ser usada para el ocr) para ver como se ve
             ->run();
 
         echo "Timestamp - Despues de hacer el OCR: " . (microtime(true) - $timestamp)."<br>";
@@ -73,6 +77,7 @@ if(isset($_FILES['image'])){
 
         foreach($html->find('span[class="ocrx_word"]') as $word) { //Recoger todas las palabras
             $aux = array(); 
+            $word->title = str_replace(";","", $word->title);
             $coords = explode(" ", $word->title); //conseguir las cordenadas
             $aux["word"] = str_replace('&quot;', '', $word->plaintext); //palabra
             $aux["x"] = getPercentOfNumber($coords[1],$widthImg); //cordenada x de la esquina superior izquierda
@@ -85,7 +90,7 @@ if(isset($_FILES['image'])){
         echo "Timestamp - Despues de convertir los datos a array con cordenadas: " . (microtime(true) - $timestamp)."<br>";
 
         //hacer el json con los datos 
-        $arrayJson["total"] = getProbablyTotal($arrayImportantWords);
+        $arrayJson["total"] = str_replace(",",".",getProbablyTotal($arrayImportantWords));
         $arrayJson["cif"] = isset($arrayImportantWords["cif"]["word"]) ? $arrayImportantWords["cif"]["word"] : null;
         $arrayJson["date"] = getProbablyDate($arrayImportantWords);
         $arrayJson["hour"] = getProbablyHour($arrayImportantWords);
