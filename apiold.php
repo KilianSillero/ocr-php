@@ -46,7 +46,7 @@ if(isset($_FILES['image'])){
         if(mime_content_type ( "images/".$file_name ) == "application/pdf"){
             exec("/usr/local/bin/gs -dSAFER -dNOPAUSE -dBATCH -sDEVICE=jpeg -dTextAlphaBits=4 -dGraphicsAlphaBits=4 -r300 -dFirstPage=1 -dLastPage=1 -sOutputFile=images/result_$file_name images/$file_name");
         }else{
-            exec("/usr/local/bin/convert images/$file_name -resize 1500x1500\> \( -clone 0 -blur 0x10 \) +swap -compose divide -composite images/result_$file_name");
+            exec("/usr/local/bin/convert images/$file_name \( -clone 0 -blur 0x10 \) +swap -compose divide -composite images/result_$file_name");
         }
         //tratar la imagen con imagick en vez de con comandos
         // $image = new Imagick("images/$file_name");
@@ -66,7 +66,6 @@ if(isset($_FILES['image'])){
             ->hocr() //devuelve lo datos en hocr
             ->psm(1)  //detecta las imagenes giradas pero tarda un poco más
             //->config("tessedit_write_images", true) //saca tambien la imagen procesada (la que va a ser usada para el ocr) para ver como se ve
-            ->threadLimit(2)
             ->run();
 
         echo "Timestamp - Despues de hacer el OCR: " . (microtime(true) - $timestamp)."<br>";
