@@ -6,6 +6,8 @@ use thiagoalessio\TesseractOCR\TesseractOCR;
 //phpinfo();die;
 //Si hay imagen
 $timestamp = microtime(true);
+$tipo = "factura";
+
 if(isset($_FILES['image'])){
 
     $path = '/usr/local/Cellar/tesseract/4.0.0_1/bin/tesseract';
@@ -74,30 +76,57 @@ if(isset($_FILES['image'])){
         //tratar los datos para despues hacer el json
         $html = str_get_html($resultado);
         $arrayJson = array(); //array general del json
+        $arrayWords = array(); //array con las todas palabras y posiciones
+        $arrayLines = array(); //array con las todas palabras y posiciones
         $arrayImportantWords = array(); //array con los campos importantes
 
         foreach($html->find('span[class="ocrx_word"]') as $word) { //Recoger todas las palabras
-            $aux = array(); 
-            $word->title = str_replace(";","", $word->title);
-            $coords = explode(" ", $word->title); //conseguir las cordenadas
-            $aux["word"] = str_replace('&quot;', '', $word->plaintext); //palabra
-            $aux["x"] = getPercentOfNumber($coords[1],$widthImg); //cordenada x de la esquina superior izquierda
-            $aux["y"] = getPercentOfNumber($coords[2],$heightImg); //cordenada y de la esquina superior izquierda
-            $aux["w"] = getPercentOfNumber(($coords[3] - $coords[1]),$widthImg); //ancho de la palabra
-            $aux["h"] = getPercentOfNumber(($coords[4] - $coords[2]),$heightImg); //alto de la palabra
+            $word = transformToCustomWord($word, $widthImg, $heightImg);
+            $arrayWords[] = $word;
             //regex
-            validateRegex($arrayImportantWords, $aux);
+            validateRegexWords($arrayImportantWords, $word);
+        }
+
+        if($tipo == "factura"){
+            $lineFac = "";
+            foreach($html->find('span[class="ocr_line"]') as $line) { //recorro las lineas
+                
+                $lineTrans = transformToCustomWord($line, $widthImg, $heightImg);
+                $arrayLines[] = $lineTrans;
+                //regex
+                validateRegexLines($arrayImportantWords, $lineTrans);
+                if(array_key_exists("numfacturatext",$arrayImportantWords) && $lineFac == ""){ //si encuentro num de factura
+                    $lineFac = $line;
+                }
+            }
+            if ($lineFac){
+
+                
+                foreach($lineFac->find('span[class="ocrx_word"]') as $word) {  //busco la palabra factura para coger sus coord
+                    
+                    $word = transformToCustomWord($word, $widthImg, $heightImg);
+                    
+                    $regExFactura = "/factura/i";
+                    if(preg_match($regExFactura, $word["word"], $matches)){        
+                        $word["word"] = $matches[0];
+                        $arrayImportantWords["facturatext"] = $word;
+                    }
+                }
+            }
         }
         echo "Timestamp - Despues de convertir los datos a array con cordenadas: " . (microtime(true) - $timestamp)."<br>";
 
+
+////** ESTO ES LO QUE SE DEVUELVE */
         //hacer el json con los datos 
         $arrayJson["total"] = str_replace(",",".",getProbablyTotal($arrayImportantWords));
-        $arrayJson["cif"] = isset($arrayImportantWords["cif"]["word"]) ? $arrayImportantWords["cif"]["word"] : null;
+        $arrayJson["cifs"] = getCifs($arrayImportantWords);
         $arrayJson["date"] = getProbablyDate($arrayImportantWords);
         $arrayJson["hour"] = getProbablyHour($arrayImportantWords);
-        //TODO - con formato 30/03/19 coge el 30 como año
         $arrayJson["fecha_formato"] = getDateFormated($arrayJson["date"], $arrayJson["hour"]);
-        
+        if($tipo == "factura"){
+            $arrayJson["factura"] = getProbablyNumFactura($arrayImportantWords);
+        }
         
 
         echo "Timestamp - Despues de tratar los datos: " . (microtime(true) - $timestamp)."<br>";
@@ -114,6 +143,19 @@ if(isset($_FILES['image'])){
 
 
 /**  FUNCIONES  */
+
+function transformToCustomWord($word, $widthImg, $heightImg){
+    $aux = array(); 
+    $word->title = str_replace(";","", $word->title);
+    $coords = explode(" ", $word->title); //conseguir las cordenadas
+    $aux["word"] = str_replace('&quot;', '', $word->plaintext); //palabra
+    $aux["x"] = getPercentOfNumber($coords[1],$widthImg); //cordenada x de la esquina superior izquierda
+    $aux["y"] = getPercentOfNumber($coords[2],$heightImg); //cordenada y de la esquina superior izquierda
+    $aux["w"] = getPercentOfNumber(($coords[3] - $coords[1]),$widthImg); //ancho de la palabra
+    $aux["h"] = getPercentOfNumber(($coords[4] - $coords[2]),$heightImg); //alto de la palabra
+
+    return $aux;
+}
 function getPercentOfNumber($number, $percent){
     if($number != 0)
         return round(($number / $percent) * 100 , 2);
@@ -122,17 +164,24 @@ function getPercentOfNumber($number, $percent){
 }
 
 //funcion para filtrar los datos y guardar los importantes
-function validateRegex(&$arrayImportantWords, $arrayWord){
+function validateRegexWords(&$arrayImportantWords, $arrayWord){
     $regExTotal = "/total/i";
     $regExCifNif = "/([a-z]|[A-Z])-?[0-9]{8}|[0-9]{8}-?([a-z]|[A-Z])/";
     $regExPrecio = "/\d{1,4}(?:[.,\s]\d{3})*(?:[.,]\d{2})(?!\%|\d|\.|\scm|cm|pol|\spol)/";
     //$regExIvaEsp = "/\d{1,2}([.,]\d{2})?%|\d{1,2}([.,]\d{2})?\s%|21,00|10,00|4,00|^21|^10|^4/";
     $regExFecha =  "/(0?[1-9]|1[0-2])[\/.-](0?[1-9]|[12]\d|3[01])[\/.-](19|20)?\d{2}|(0?[1-9]|[12]\d|3[01])[\/.-](0?[1-9]|1[0-2])[\/.-](19|20)?\d{2}/";
     $regExHora = "/([01]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?/";
+    $regExWithNumber = "/\S*[0-9].*/";
+
+    //Que tengan numeros
+    if(preg_match($regExWithNumber, $arrayWord["word"], $matches)){        
+        $arrayWord["word"] = $matches[0];
+        $arrayImportantWords["numbers"][] = $arrayWord;
+    }
     //cif
     if(preg_match($regExCifNif, $arrayWord["word"], $matches)){        
         $arrayWord["word"] = $matches[0];
-        $arrayImportantWords["cif"] = $arrayWord;
+        $arrayImportantWords["cifs"][] = $arrayWord;
         return;
     }
     //fecha
@@ -159,22 +208,34 @@ function validateRegex(&$arrayImportantWords, $arrayWord){
         $arrayWord["word"] = $matches[0];
         $arrayImportantWords["prices"][] = $arrayWord;
         return;
-    }   
+    }
+    //horas   
     if(preg_match($regExHora, $arrayWord["word"], $matches)){        
         $arrayWord["word"] = $matches[0];
         $arrayImportantWords["hours"][] = $arrayWord;
         return;
     }  
+    
 
 }
-
+function validateRegexLines(&$arrayImportantWords, $arrayWord){
+    $regExNumFactura = "/n(º|.)\s*(de)?\s*factura|n(u|ú)mero\s*(de)?\s*factura/i";
+    //num factura - texto/target
+    if(preg_match($regExNumFactura, $arrayWord["word"], $matches)){  
+            
+        $arrayWord["word"] = $matches[0];
+        $arrayImportantWords["numfacturatext"] = $arrayWord;
+        
+        return;
+    }  
+}
 
 //funciones para recoger valores
 function getProbablyTotal($arrayImportantWords){
     $arrayTotals = array();
     if(array_key_exists("prices",$arrayImportantWords)){
         if(array_key_exists("total",$arrayImportantWords)){
-            $arrayTotals["nearest"] = getNearest($arrayImportantWords["total"], $arrayImportantWords["prices"]);
+            $arrayTotals["nearest"] = getNearestAxis($arrayImportantWords["total"], $arrayImportantWords["prices"]);
         }
         $arrayTotals["bigger"] = getBigger($arrayImportantWords["prices"], "h");
         $arrayTotals["max"] = getMaxNumber($arrayImportantWords["prices"]);
@@ -185,13 +246,30 @@ function getProbablyTotal($arrayImportantWords){
 }
 function getProbablyHour($arrayImportantWords){
     if(array_key_exists("date",$arrayImportantWords) && array_key_exists("hours",$arrayImportantWords)){
-        return getNearest($arrayImportantWords["date"][0],$arrayImportantWords["hours"])["word"];
+        return getNearestAxis($arrayImportantWords["date"][0],$arrayImportantWords["hours"])["word"];
     }
     return null;
 }
 function getProbablyDate($arrayImportantWords){
     if(array_key_exists("date",$arrayImportantWords)){
         return getMoreProbably($arrayImportantWords["date"]);
+    }
+    return null;
+}
+function getProbablyNumFactura($arrayImportantWords){
+    
+    if(array_key_exists("facturatext",$arrayImportantWords)){
+        if(array_key_exists("numbers",$arrayImportantWords)){
+            return getNearestXY($arrayImportantWords["facturatext"], $arrayImportantWords["numbers"])["word"];
+        }
+    }
+    return null;
+}
+function getCifs($arrayImportantWords){
+
+    if(isset($arrayImportantWords["cifs"])){
+        $column = array_column($arrayImportantWords["cifs"], "word");
+        return $column;
     }
     return null;
 }
@@ -206,6 +284,7 @@ function getDateFormated($date, $hour){
         return null;
     }
 }
+
 function getMoreProbably($array){
     //devolver el total mas probable (el que mas veces salga)
     $probably = null;
@@ -221,19 +300,38 @@ function getMoreProbably($array){
     return $probably;
 }
 
+
+//funciones base
 function getBigger($array, $value){ //con value 'h' devuelve el más alto, con value 'y' devuelve el que mas abajo esté
     $column = array_column($array, $value);
     $key = array_keys($column,max($column));
     return $array[$key[0]];
 }
 
-function getNearest($target, $array, $axis="y"){ //devuelve el mas cercano a su eje (Ej: target 'total', eje 'y')
-    $yt = $target[$axis];
+function getNearestAxis($target, $array, $axis="y"){ //devuelve el mas cercano a su eje (Ej: target 'total', eje 'y')
+   
+    $axisT = $target[$axis];
     $nearest = [];
     $min = 100;
     foreach ($array as $key=>$value) {
-        $aux = abs($yt - $value[$axis]);
+        $aux = abs($axisT - $value[$axis]);
         if($aux < $min){
+            $nearest = $array[$key];
+            $min = $aux;
+        }
+    }
+    return $nearest;
+}
+function getNearestXY($target, $array, $maxX = 20, $maxY = 3){ //devuelve el mas cercano (Ej: target 'Num Factura')
+    
+    $yt = $target["y"];
+    $xt = $target["x"];
+    $nearest = [];
+    $min = 200;
+    foreach ($array as $key=>$value) {
+        $aux = abs($yt - $value["y"]) + abs($xt - $value["x"]);
+        //maximo de lejos de Y, X | que este a la derecha del objeto (-1 de margen) y que este mas cerca que el anterior
+        if(abs($yt - $value["y"]) < $maxY && abs($xt - $value["x"]) < $maxX && ($xt - $value["x"]) < -1  && $aux < $min){
             $nearest = $array[$key];
             $min = $aux;
         }
