@@ -166,7 +166,7 @@ function getPercentOfNumber($number, $percent){
 //funcion para filtrar los datos y guardar los importantes
 function validateRegexWords(&$arrayImportantWords, $arrayWord){
     $regExTotal = "/total/i";
-    $regExCifNif = "/([a-z]|[A-Z])-?[0-9]{8}|[0-9]{8}-?([a-z]|[A-Z])/";
+    $regExCifNif = "/([a-z]|[A-Z])-?[0-9]{8}(?![0-9])|(?<![0-9])[0-9]{8}-?([a-z]|[A-Z])/";
     $regExPrecio = "/\d{1,4}(?:[.,\s]\d{3})*(?:[.,]\d{2})(?!\%|\d|\.|\scm|cm|pol|\spol)/";
     //$regExIvaEsp = "/\d{1,2}([.,]\d{2})?%|\d{1,2}([.,]\d{2})?\s%|21,00|10,00|4,00|^21|^10|^4/";
     $regExFecha =  "/(0?[1-9]|1[0-2])[\/.-](0?[1-9]|[12]\d|3[01])[\/.-](19|20)?\d{2}|(0?[1-9]|[12]\d|3[01])[\/.-](0?[1-9]|1[0-2])[\/.-](19|20)?\d{2}/";
@@ -180,7 +180,7 @@ function validateRegexWords(&$arrayImportantWords, $arrayWord){
     }
     //cif
     if(preg_match($regExCifNif, $arrayWord["word"], $matches)){        
-        $arrayWord["word"] = $matches[0];
+        $arrayWord["word"] = str_replace('-', '', $matches[0]); //quitar guion
         $arrayImportantWords["cifs"][] = $arrayWord;
         return;
     }
@@ -268,8 +268,31 @@ function getProbablyNumFactura($arrayImportantWords){
 function getCifs($arrayImportantWords){
 
     if(isset($arrayImportantWords["cifs"])){
-        $column = array_column($arrayImportantWords["cifs"], "word");
-        return $column;
+        $cifs = array_column($arrayImportantWords["cifs"], "word");
+        $cifsValidados = [];
+
+        //Quitar del array de cifs el que se pasa por parametro 
+        if(isset($_POST['cif'])){
+            $cifAQuitar = $_POST['cif'];
+            $cifAQuitar = str_replace('-', '', $cifAQuitar); //quitar guion
+            if (($key = array_search($cifAQuitar, $cifs)) !== false) {
+                unset($cifs[$key]);
+            }
+        }
+        include 'bd.php';
+        //llamada al sv para comprobar cifs
+        foreach ($cifs as $key => $cif) {
+            $result = checkCif($cif);
+            if($result != false){
+                $cifsValidados["cif"] = array("valido" => true, "cif" => $result["CIF"], "id" => $result["id_cuenta"], "nombre" => $result["nombre"], "nombrefiscal" => $result["nombrefiscal"]);
+            }else{
+                $cifsValidados["cif"] = array("valido" => false, "cif" => $cif, "id" => null, "nombre" => null, "nombrefiscal" => null);
+            }
+        }
+            
+        
+                
+        return $cifsValidados;
     }
     return null;
 }
@@ -331,7 +354,7 @@ function getNearestXY($target, $array, $maxX = 20, $maxY = 3){ //devuelve el mas
     foreach ($array as $key=>$value) {
         $aux = abs($yt - $value["y"]) + abs($xt - $value["x"]);
         //maximo de lejos de Y, X | que este a la derecha del objeto (-1 de margen) y que este mas cerca que el anterior
-        if(abs($yt - $value["y"]) < $maxY && abs($xt - $value["x"]) < $maxX && ($xt - $value["x"]) < -1  && $aux < $min){
+        if(abs($yt - $value["y"]) < $maxY && abs($xt - $value["x"]) < $maxX && ($xt - $value["x"]) < 0  && $aux < $min){
             $nearest = $array[$key];
             $min = $aux;
         }
