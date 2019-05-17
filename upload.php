@@ -25,8 +25,11 @@ if(isset($_FILES['image'])){
     echo '<img src="images/'.$file_name.'" style="width:100%">';
 
     //tratamos la imagen con imagemagick (tiene que estar instalado)
-    exec("/usr/local/bin/convert images/$file_name \( -clone 0 -blur 0x10 \) +swap -compose divide -composite images/result_$file_name");
-
+    if(mime_content_type ( "images/".$file_name ) == "application/pdf"){
+        exec("/usr/local/bin/gs -dSAFER -dNOPAUSE -dBATCH -sDEVICE=jpeg -dTextAlphaBits=4 -dGraphicsAlphaBits=4 -r300 -dFirstPage=1 -dLastPage=1 -sOutputFile=images/result_$file_name images/$file_name");
+    }else{
+        exec("/usr/local/bin/convert images/$file_name \( -clone 0 -blur 0x10 \) +swap -compose divide -composite images/result_$file_name");
+    }
     //hacemos el ocr
     $resultado = (new TesseractOCR("images/result_$file_name"))
         //He tenido que ponerle la ruta donde esta el ejecutable por que aun cogiendo el path en la consola desde php no va
@@ -35,6 +38,7 @@ if(isset($_FILES['image'])){
         ->hocr() //devuelve lo datos en hocr
         ->psm(1)  //Menos estructurado pero reconoce mejor los numeros
         ->config("tessedit_write_images", true)
+        //->userPatterns("patrones/patterns.txt")
         ->run();
 
 
