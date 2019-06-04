@@ -1,7 +1,7 @@
 <?php
 
 
-function checkCif($cif){
+function checkCif($cif, $id_cliente, $id_usuario, $id_empresa){
     $servername = "localhost";
     $username = "kilian";
     $password = "1234";
@@ -18,7 +18,9 @@ function checkCif($cif){
 
     $sql = "SELECT id_cuenta, nombre, nombrefiscal, CIF
             FROM cuenta 
-            WHERE CIF = '" . $conn->escape_string($cif) . "' AND proveedor = '1' AND status = '0'";
+            WHERE CIF = '" . $conn->escape_string($cif) . "' AND proveedor = '1' AND status = '0'
+            AND id_cliente = '$id_cliente' AND id_usuario = '$id_usuario' AND id_empresa = '$id_empresa'";
+            //id_cliente, id_usuario, id_empresa
     $result = $conn->query($sql);
 
     if ($result->num_rows > 0) {

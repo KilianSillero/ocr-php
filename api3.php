@@ -120,7 +120,9 @@ if(isset($_FILES['image'])){
 ////** ESTO ES LO QUE SE DEVUELVE */
         //hacer el json con los datos 
         $arrayJson["total"] = str_replace(",",".",getProbablyTotal($arrayImportantWords));
+        echo "Timestamp - Antes de buscar los cifs: " . (microtime(true) - $timestamp)."<br>";
         $arrayJson["cifs"] = getCifs($arrayImportantWords);
+        echo "Timestamp - Despues de buscar los cifs: " . (microtime(true) - $timestamp)."<br>";
         $arrayJson["date"] = getProbablyDate($arrayImportantWords);
         $arrayJson["hour"] = getProbablyHour($arrayImportantWords);
         $arrayJson["fecha_formato"] = getDateFormated($arrayJson["date"], $arrayJson["hour"]);
@@ -279,18 +281,20 @@ function getCifs($arrayImportantWords){
                 unset($cifs[$key]);
             }
         }
+
         include 'bd.php';
-        //llamada al sv para comprobar cifs
-        foreach ($cifs as $key => $cif) {
-            $result = checkCif($cif);
-            if($result != false){
-                $cifsValidados["cif"] = array("valido" => true, "cif" => $result["CIF"], "id" => $result["id_cuenta"], "nombre" => $result["nombre"], "nombrefiscal" => $result["nombrefiscal"]);
-            }else{
-                $cifsValidados["cif"] = array("valido" => false, "cif" => $cif, "id" => null, "nombre" => null, "nombrefiscal" => null);
+        //comprobar si se han pasado los parametros 
+        if(isset($_POST['id_cliente']) && isset($_POST['id_usuario']) && isset($_POST['id_empresa'])){
+            //llamada al sv para comprobar cifs
+            foreach ($cifs as $key => $cif) {
+                $result = checkCif($cif, $_POST['id_cliente'], $_POST['id_usuario'], $_POST['id_empresa']);
+                if($result != false){
+                    $cifsValidados["cif"] = array("valido" => true, "cif" => $result["CIF"], "id" => $result["id_cuenta"], "nombre" => $result["nombre"], "nombrefiscal" => $result["nombrefiscal"]);
+                }else{
+                    $cifsValidados["cif"] = array("valido" => false, "cif" => $cif, "id" => null, "nombre" => null, "nombrefiscal" => null);
+                }
             }
         }
-            
-        
                 
         return $cifsValidados;
     }
