@@ -10,6 +10,8 @@
         <input type="text" name="id_usuario" value="1">
         <p>id_empresa</p>
         <input type="text" name="id_empresa" value="1">
+        <p>cif a quitar (cif del usuario)</p>
+        <input type="text" name="cif" value="12345678A">
         <input type="submit"/>
     </form>
 
